@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { addQuizScreens, createQuiz, getQuiz, getQuizzes, updateQuizScreens, updateQuizLiveStatus } from '../controllers/quiz.controller';
+import { addQuizScreens, createQuiz, getQuiz, getQuizzes, updateQuizScreens, updateQuizLiveStatus, updateQuizDeletionStatus } from '../controllers/quiz.controller';
 
 const router = Router();
 
@@ -17,6 +17,9 @@ router.put('/quizzes/:id/screens', updateQuizScreens);
 
 // Update quiz live status
 router.patch('/quizzes/:id/live', updateQuizLiveStatus);
+
+// Update quiz deletion status (soft delete)
+router.patch('/quizzes/:id/deletion', updateQuizDeletionStatus);
 
 // Get a quiz by id
 router.get('/quizzes/:id', getQuiz);

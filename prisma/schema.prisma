@@ -13,6 +13,7 @@ model Quiz {
   title     String
   content   Json?
   live      Boolean  @default(false)
+  deletion  Boolean  @default(false)
   createdAt DateTime @default(now())
 }
 

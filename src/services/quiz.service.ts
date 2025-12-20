@@ -25,6 +25,7 @@ export const getQuizById = async (id: string): Promise<Quiz | null> => {
 
 export const listQuizzes = async (): Promise<Quiz[]> => {
   return prisma.quiz.findMany({
+    where: { deletion: false },
     orderBy: { createdAt: 'desc' },
   });
 };
@@ -94,6 +95,23 @@ export const updateQuizLive = async (id: string, live: boolean): Promise<Quiz> =
     where: { id },
     data: {
       live,
+    },
+  });
+};
+
+export const updateQuizDeletion = async (id: string, deletion: boolean): Promise<Quiz> => {
+  const quiz = await prisma.quiz.findUnique({
+    where: { id },
+  });
+
+  if (!quiz) {
+    throw new Error('Quiz not found');
+  }
+
+  return prisma.quiz.update({
+    where: { id },
+    data: {
+      deletion,
     },
   });
 };
