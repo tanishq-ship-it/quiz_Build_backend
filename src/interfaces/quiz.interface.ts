@@ -9,5 +9,10 @@ export interface QuizDto { id: string; title: string; content: any; live: boolea
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface AppendScreensRequestBody { screens: any[] }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export interface ReplaceScreensRequestBody { screens: any[] }
+
+export interface UpdateQuizLiveRequestBody { live: boolean }
+
 
 
