@@ -29,5 +29,38 @@ export const listQuizzes = async (): Promise<Quiz[]> => {
   });
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const appendScreensToQuiz = async (id: string, screens: any[]): Promise<Quiz> => {
+  const quiz = await prisma.quiz.findUnique({
+    where: { id },
+  });
+
+  if (!quiz) {
+    throw new Error('Quiz not found');
+  }
+
+  const existingContent = quiz.content;
+
+  // Normalise existing content to an array
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let baseScreens: any[];
+  if (Array.isArray(existingContent)) {
+    baseScreens = existingContent;
+  } else if (existingContent == null) {
+    baseScreens = [];
+  } else {
+    baseScreens = [existingContent];
+  }
+
+  const newContent = [...baseScreens, ...screens];
+
+  return prisma.quiz.update({
+    where: { id },
+    data: {
+      content: newContent,
+    },
+  });
+};
+
 
 

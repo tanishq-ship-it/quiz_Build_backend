@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createQuiz, getQuiz, getQuizzes } from '../controllers/quiz.controller';
+import { addQuizScreens, createQuiz, getQuiz, getQuizzes } from '../controllers/quiz.controller';
 
 const router = Router();
 
@@ -8,6 +8,9 @@ router.post('/quizzes', createQuiz);
 
 // List quizzes
 router.get('/quizzes', getQuizzes);
+
+// Append screens to quiz content
+router.post('/quizzes/:id/screens', addQuizScreens);
 
 // Get a quiz by id
 router.get('/quizzes/:id', getQuiz);
