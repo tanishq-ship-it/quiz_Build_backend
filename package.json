@@ -4,16 +4,16 @@
   "main": "dist/index.js",
   "license": "MIT",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "db:generate": "prisma generate",
-    "db:migrate:dev": "prisma migrate dev",
-    "db:migrate:deploy": "prisma migrate deploy",
-    "db:migrate:reset": "prisma migrate reset",
-    "db:push": "prisma db push",
-    "db:studio": "prisma studio"
-  },
+  "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+  "build": "prisma generate && tsc",
+  "start": "node dist/index.js",
+  "db:generate": "prisma generate",
+  "db:migrate:dev": "prisma migrate dev",
+  "db:migrate:deploy": "prisma migrate deploy",
+  "db:migrate:reset": "prisma migrate reset",
+  "db:push": "prisma db push",
+  "db:studio": "prisma studio"
+   },
   "dependencies": {
     "@prisma/client": "^6.0.0",
     "cors": "^2.8.5",
