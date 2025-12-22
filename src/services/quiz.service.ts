@@ -99,7 +99,7 @@ export const updateQuizLive = async (id: string, live: boolean): Promise<Quiz> =
   });
 };
 
-export const updateQuizDeletion = async (id: string, deletion: boolean): Promise<Quiz> => {
+export const updateQuizDeletion = async (id: string, _deletion: boolean): Promise<Quiz> => {
   const quiz = await prisma.quiz.findUnique({
     where: { id },
   });
@@ -111,7 +111,8 @@ export const updateQuizDeletion = async (id: string, deletion: boolean): Promise
   return prisma.quiz.update({
     where: { id },
     data: {
-      deletion,
+      deletion: true,
+      live: false,
     },
   });
 };

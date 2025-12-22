@@ -17,4 +17,13 @@ model Quiz {
   createdAt DateTime @default(now())
 }
 
+model QuizResponse {
+  id        String   @id @default(cuid())
+  quizId    String
+  content   Json?
+  createdAt DateTime @default(now())
+
+  @@index([quizId])
+}
+
 
