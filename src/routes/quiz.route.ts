@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { addQuizScreens, createQuiz, getQuiz, getQuizzes, updateQuizScreens, updateQuizLiveStatus, updateQuizDeletionStatus } from '../controllers/quiz.controller';
+import { addQuizScreens, createQuiz, deleteQuizScreen, getQuiz, getQuizzes, updateQuizScreens, updateQuizLiveStatus, updateQuizDeletionStatus } from '../controllers/quiz.controller';
 
 const router = Router();
 
@@ -23,6 +23,9 @@ router.patch('/quizzes/:id/deletion', updateQuizDeletionStatus);
 
 // Get a quiz by id
 router.get('/quizzes/:id', getQuiz);
+
+// Delete a screen from quiz content
+router.delete('/quizzes/:id/screens/:screenId', deleteQuizScreen);
 
 export default router;
 

@@ -118,3 +118,44 @@ export const updateQuizDeletion = async (id: string, _deletion: boolean): Promis
 };
 
 
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const removeScreenFromQuiz = async (id: string, screenId: string): Promise<Quiz> => {
+  const quiz = await prisma.quiz.findUnique({
+    where: { id },
+  });
+
+  if (!quiz) {
+    throw new Error('Quiz not found');
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const existingContent = quiz.content as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let newContent: any;
+
+  if (Array.isArray(existingContent)) {
+    // Case 1: Array of screens
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    newContent = existingContent.filter((s: any) => s.id !== screenId);
+  } else if (existingContent && typeof existingContent === 'object' && Array.isArray(existingContent.screens)) {
+    // Case 2: Config object with screens array
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const newScreens = existingContent.screens.filter((s: any) => s.id !== screenId);
+    newContent = { ...existingContent, screens: newScreens };
+  } else if (existingContent && typeof existingContent === 'object' && existingContent.id === screenId) {
+    // Case 3: Single screen object that matches
+    newContent = [];
+  } else {
+    // Case 4: Single screen not matching, or null, or unknown structure
+    // No change needed
+    newContent = existingContent;
+  }
+
+  return prisma.quiz.update({
+    where: { id },
+    data: {
+      content: newContent ?? undefined, // prisma doesn't like null for Json? actually it handles it, but let's be safe
+    },
+  });
+};

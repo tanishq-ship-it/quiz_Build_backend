@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import type { Quiz } from '@prisma/client';
-import { appendScreensToQuiz, createQuiz as createQuizService, getQuizById as getQuizByIdService, listQuizzes, replaceQuizScreens, updateQuizDeletion, updateQuizLive } from '../services/quiz.service';
+import { appendScreensToQuiz, createQuiz as createQuizService, getQuizById as getQuizByIdService, listQuizzes, removeScreenFromQuiz, replaceQuizScreens, updateQuizDeletion, updateQuizLive } from '../services/quiz.service';
 import type { AppendScreensRequestBody, CreateQuizRequestBody, QuizDto, ReplaceScreensRequestBody, UpdateQuizDeletionRequestBody, UpdateQuizLiveRequestBody } from '../interfaces/quiz.interface';
 
 const toQuizDto = (quiz: Quiz): QuizDto => ({
@@ -173,4 +173,32 @@ export const updateQuizDeletionStatus = async (req: Request, res: Response): Pro
 };
 
 
+
+export const deleteQuizScreen = async (req: Request, res: Response): Promise<void> => {
+  const { id, screenId } = req.params;
+
+  if (!id) {
+    res.status(400).json({ message: 'id is required' });
+    return;
+  }
+
+  if (!screenId) {
+    res.status(400).json({ message: 'screenId is required' });
+    return;
+  }
+
+  try {
+    const quiz = await removeScreenFromQuiz(id, screenId);
+    res.status(200).json(toQuizDto(quiz));
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error(error);
+    if (error instanceof Error && error.message === 'Quiz not found') {
+      res.status(404).json({ message: 'Quiz not found' });
+      return;
+    }
+
+    res.status(500).json({ message: 'Failed to delete screen' });
+  }
+};
 
