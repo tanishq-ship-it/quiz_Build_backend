@@ -120,7 +120,8 @@ export const updateQuizDeletion = async (id: string, _deletion: boolean): Promis
 
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const removeScreenFromQuiz = async (id: string, screenId: string): Promise<Quiz> => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const removeScreenFromQuiz = async (id: string, screenId: string, index?: number): Promise<Quiz> => {
   const quiz = await prisma.quiz.findUnique({
     where: { id },
   });
@@ -137,25 +138,35 @@ export const removeScreenFromQuiz = async (id: string, screenId: string): Promis
   if (Array.isArray(existingContent)) {
     // Case 1: Array of screens
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    newContent = existingContent.filter((s: any) => s.id !== screenId);
+    if (typeof index === 'number') {
+      newContent = existingContent.filter((_s: any, idx: number) => idx !== index);
+    } else {
+      newContent = existingContent.filter((s: any) => s.id !== screenId);
+    }
   } else if (existingContent && typeof existingContent === 'object' && Array.isArray(existingContent.screens)) {
     // Case 2: Config object with screens array
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const newScreens = existingContent.screens.filter((s: any) => s.id !== screenId);
+    let newScreens: any[];
+    if (typeof index === 'number') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      newScreens = existingContent.screens.filter((_s: any, idx: number) => idx !== index);
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      newScreens = existingContent.screens.filter((s: any) => s.id !== screenId);
+    }
     newContent = { ...existingContent, screens: newScreens };
   } else if (existingContent && typeof existingContent === 'object' && existingContent.id === screenId) {
     // Case 3: Single screen object that matches
     newContent = [];
   } else {
     // Case 4: Single screen not matching, or null, or unknown structure
-    // No change needed
     newContent = existingContent;
   }
 
   return prisma.quiz.update({
     where: { id },
     data: {
-      content: newContent ?? undefined, // prisma doesn't like null for Json? actually it handles it, but let's be safe
+      content: newContent ?? undefined, 
     },
   });
 };

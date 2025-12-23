@@ -176,6 +176,7 @@ export const updateQuizDeletionStatus = async (req: Request, res: Response): Pro
 
 export const deleteQuizScreen = async (req: Request, res: Response): Promise<void> => {
   const { id, screenId } = req.params;
+  const { index } = req.query;
 
   if (!id) {
     res.status(400).json({ message: 'id is required' });
@@ -187,8 +188,17 @@ export const deleteQuizScreen = async (req: Request, res: Response): Promise<voi
     return;
   }
 
+  let indexNum: number | undefined;
+  if (index !== undefined) {
+    indexNum = Number(index);
+    if (isNaN(indexNum)) {
+      res.status(400).json({ message: 'index must be a number' });
+      return;
+    }
+  }
+
   try {
-    const quiz = await removeScreenFromQuiz(id, screenId);
+    const quiz = await removeScreenFromQuiz(id, screenId, indexNum);
     res.status(200).json(toQuizDto(quiz));
   } catch (error) {
     // eslint-disable-next-line no-console
