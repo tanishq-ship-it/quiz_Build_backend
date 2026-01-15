@@ -4,28 +4,28 @@ import { addQuizScreens, createQuiz, deleteQuizScreen, getQuiz, getQuizzes, upda
 const router = Router();
 
 // Create a new quiz
-router.post('/quizzes', createQuiz);
+router.post('/', createQuiz);
 
 // List quizzes
-router.get('/quizzes', getQuizzes);
+router.get('/', getQuizzes);
 
 // Append screens to quiz content
-router.post('/quizzes/:id/screens', addQuizScreens);
+router.post('/:id/screens', addQuizScreens);
 
 // Replace all screens for a quiz
-router.put('/quizzes/:id/screens', updateQuizScreens);
+router.put('/:id/screens', updateQuizScreens);
 
 // Update quiz live status
-router.patch('/quizzes/:id/live', updateQuizLiveStatus);
+router.patch('/:id/live', updateQuizLiveStatus);
 
 // Update quiz deletion status (soft delete)
-router.patch('/quizzes/:id/deletion', updateQuizDeletionStatus);
+router.patch('/:id/deletion', updateQuizDeletionStatus);
 
 // Get a quiz by id
-router.get('/quizzes/:id', getQuiz);
+router.get('/:id', getQuiz);
 
 // Delete a screen from quiz content
-router.delete('/quizzes/:id/screens/:screenId', deleteQuizScreen);
+router.delete('/:id/screens/:screenId', deleteQuizScreen);
 
 export default router;
 

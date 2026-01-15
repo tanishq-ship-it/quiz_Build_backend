@@ -4,6 +4,11 @@ import { PORT } from './config/env';
 import healthRouter from './routes/health.route';
 import quizRouter from './routes/quiz.route';
 import quizResponseRouter from './routes/quizResponse.route';
+import authRouter from './routes/auth.route';
+import userRouter from './routes/user.route';
+import publicQuizRouter from './routes/publicQuiz.route';
+import publicQuizResponseRouter from './routes/publicQuizResponse.route';
+import { authMiddleware } from './middleware/auth.middleware';
 
 const app = express();
 
@@ -12,9 +17,16 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// Public routes
 app.use('/api', healthRouter);
-app.use('/api', quizRouter);
-app.use('/api', quizResponseRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/public/quizzes', publicQuizRouter);
+app.use('/api/public/quiz-responses', publicQuizResponseRouter);
+
+// Protected routes
+app.use('/api/quizzes', authMiddleware, quizRouter);
+app.use('/api/quiz-responses', authMiddleware, quizResponseRouter);
+app.use('/api/users', userRouter);
 
 app.get('/', (_req, res) => {
   res.send('Quiz Builder backend is running');
