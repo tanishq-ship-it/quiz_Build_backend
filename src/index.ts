@@ -8,11 +8,19 @@ import authRouter from './routes/auth.route';
 import userRouter from './routes/user.route';
 import publicQuizRouter from './routes/publicQuiz.route';
 import publicQuizResponseRouter from './routes/publicQuizResponse.route';
+import paymentRouter from './routes/payment.route';
+import adminPaymentRouter from './routes/adminPayment.route';
+import webhookRouter from './routes/webhook.route';
 import { authMiddleware } from './middleware/auth.middleware';
 
 const app = express();
 
 app.use(cors());
+
+// IMPORTANT: Webhook route must come BEFORE JSON parsing middleware
+// because Stripe webhooks need raw body for signature verification
+app.use('/api/webhooks', express.raw({ type: 'application/json' }), webhookRouter);
+
 // Quiz payloads can be large (many screens / rich content). Increase body size limit.
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -22,11 +30,13 @@ app.use('/api', healthRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/public/quizzes', publicQuizRouter);
 app.use('/api/public/quiz-responses', publicQuizResponseRouter);
+app.use('/api/public/payments', paymentRouter);
 
 // Protected routes
 app.use('/api/quizzes', authMiddleware, quizRouter);
 app.use('/api/quiz-responses', authMiddleware, quizResponseRouter);
 app.use('/api/users', userRouter);
+app.use('/api/payments', authMiddleware, adminPaymentRouter);
 
 app.get('/', (_req, res) => {
   res.send('Quiz Builder backend is running');

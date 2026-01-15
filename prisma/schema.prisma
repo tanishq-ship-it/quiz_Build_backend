@@ -36,4 +36,33 @@ model User {
   updatedAt DateTime @updatedAt
 }
 
+model PaymentLead {
+  id                    String    @id @default(cuid())
 
+  // Two emails collected
+  email1                String    // Before payment
+  email2                String?   // After payment/skip
+
+  // Quiz reference
+  quizId                String?
+  quizResponseId        String?
+
+  // Plan selection
+  planType              String?   // "1_month" | "3_month" | "1_year" | null (if skipped)
+  amountInCents         Int?
+
+  // Payment status
+  paid                  Boolean   @default(false)
+  stripeSessionId       String?   @unique
+  stripePaymentIntentId String?
+
+  // Timestamps
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  paidAt                DateTime?
+
+  @@index([email1])
+  @@index([email2])
+  @@index([quizId])
+  @@index([paid])
+}
