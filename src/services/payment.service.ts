@@ -30,13 +30,14 @@ export interface UpdateLeadInput {
   planType?: string | null;
   paid: boolean;
   stripeSessionId?: string | null;
+  deviceType?: string | null;
 }
 
 export const updateLead = async (
   leadId: string,
   input: UpdateLeadInput
 ): Promise<PaymentLead> => {
-  const { email2, planType, paid, stripeSessionId } = input;
+  const { email2, planType, paid, stripeSessionId, deviceType } = input;
 
   const amountInCents = planType && isValidPlanType(planType)
     ? PRICES[planType].amount
@@ -50,6 +51,7 @@ export const updateLead = async (
       paid,
       amountInCents,
       stripeSessionId,
+      deviceType,
       paidAt: paid ? new Date() : null,
     },
   });

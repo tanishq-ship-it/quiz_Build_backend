@@ -56,6 +56,9 @@ model PaymentLead {
   stripeSessionId       String?   @unique
   stripePaymentIntentId String?
 
+  // Device tracking
+  deviceType            String?   // "ios" | "android" | "desktop"
+
   // Timestamps
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
@@ -65,4 +68,5 @@ model PaymentLead {
   @@index([email2])
   @@index([quizId])
   @@index([paid])
+  @@index([deviceType])
 }

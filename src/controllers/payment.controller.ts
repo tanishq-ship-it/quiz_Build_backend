@@ -50,6 +50,7 @@ interface UpdateLeadBody {
   planType?: string | null;
   paid: boolean;
   stripeSessionId?: string | null;
+  deviceType?: string | null;
 }
 
 export const updateLead = async (req: Request, res: Response): Promise<void> => {
@@ -79,6 +80,7 @@ export const updateLead = async (req: Request, res: Response): Promise<void> => 
       planType: body.planType,
       paid: body.paid,
       stripeSessionId: body.stripeSessionId,
+      deviceType: body.deviceType,
     });
 
     res.status(200).json({
