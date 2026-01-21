@@ -2,6 +2,8 @@ import type { PaymentLead } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { stripe, PRICES, FRONTEND_URL, isValidPlanType, type PlanType } from '../config/stripe';
 import type Stripe from 'stripe';
+import { clerkService } from './clerk.service';
+import { revenueCatService } from './revenuecat.service';
 
 // ========== CREATE LEAD (Email Page 1) ==========
 
@@ -43,6 +45,25 @@ export const updateLead = async (
     ? PRICES[planType].amount
     : null;
 
+  // Create Clerk user silently when email2 is confirmed
+  let clerkUserId: string | null = null;
+  if (email2) {
+    const clerkResult = await clerkService.createUser(email2);
+    if (clerkResult.success && clerkResult.clerkUserId) {
+      clerkUserId = clerkResult.clerkUserId;
+
+      // Grant RevenueCat entitlement if user paid and has a plan
+      if (paid && planType) {
+        const rcResult = await revenueCatService.grantEntitlement(clerkUserId, planType, email2);
+        if (rcResult.success) {
+          console.log(`[RevenueCat] Entitlement granted for user ${clerkUserId}, plan: ${planType}`);
+        } else {
+          console.error(`[RevenueCat] Failed to grant entitlement: ${rcResult.error}`);
+        }
+      }
+    }
+  }
+
   return prisma.paymentLead.update({
     where: { id: leadId },
     data: {
@@ -53,6 +74,7 @@ export const updateLead = async (
       stripeSessionId,
       deviceType,
       paidAt: paid ? new Date() : null,
+      clerkUserId,
     },
   });
 };
