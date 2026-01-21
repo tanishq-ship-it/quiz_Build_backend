@@ -43,6 +43,9 @@ model PaymentLead {
   email1                String    // Before payment
   email2                String?   // After payment/skip
 
+  // Clerk user reference
+  clerkUserId           String?   @unique
+
   // Quiz reference
   quizId                String?
   quizResponseId        String?

@@ -2,6 +2,7 @@ import type { PaymentLead } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { stripe, PRICES, FRONTEND_URL, isValidPlanType, type PlanType } from '../config/stripe';
 import type Stripe from 'stripe';
+import * as clerkService from './clerk.service';
 
 // ========== CREATE LEAD (Email Page 1) ==========
 
@@ -14,11 +15,19 @@ export interface CreateLeadInput {
 export const createLead = async (input: CreateLeadInput): Promise<PaymentLead> => {
   const { email1, quizId, quizResponseId } = input;
 
+  // Create Clerk user first (without username)
+  const clerkUser = await clerkService.createClerkUser(email1);
+
+  if (!clerkUser) {
+    throw new Error('Failed to create Clerk user');
+  }
+
   return prisma.paymentLead.create({
     data: {
       email1,
       quizId,
       quizResponseId,
+      clerkUserId: clerkUser.id,
     },
   });
 };
@@ -42,6 +51,44 @@ export const updateLead = async (
   const amountInCents = planType && isValidPlanType(planType)
     ? PRICES[planType].amount
     : null;
+
+  // Get the existing lead to check if email changed
+  const existingLead = await prisma.paymentLead.findUnique({
+    where: { id: leadId },
+  });
+
+  if (!existingLead) {
+    throw new Error('Lead not found');
+  }
+
+  // If email2 is different from email1, update Clerk user email
+  if (email2 && existingLead.email1 !== email2 && existingLead.clerkUserId) {
+    console.log('Email changed, updating Clerk user...');
+    console.log('Old email (email1):', existingLead.email1);
+    console.log('New email (email2):', email2);
+
+    // Get the Clerk user to find the old email address ID
+    const clerkUser = await clerkService.getClerkUser(existingLead.clerkUserId);
+
+    if (clerkUser) {
+      // Find the old email address ID
+      const oldEmailAddress = clerkUser.email_addresses.find(
+        (e) => e.email_address === existingLead.email1
+      );
+
+      // Add new email as primary
+      const newEmailResult = await clerkService.updateClerkUserEmail(
+        existingLead.clerkUserId,
+        email2
+      );
+
+      if (newEmailResult && oldEmailAddress) {
+        // Delete the old email address
+        await clerkService.deleteClerkEmailAddress(oldEmailAddress.id);
+        console.log('Old email address deleted from Clerk');
+      }
+    }
+  }
 
   return prisma.paymentLead.update({
     where: { id: leadId },
