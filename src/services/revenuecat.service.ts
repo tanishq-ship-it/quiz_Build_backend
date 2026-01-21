@@ -1,35 +1,23 @@
-import { REVENUECAT_SECRET_KEY } from '../config/env';
+import { REVENUECAT_SECRET_KEY, REVENUECAT_STRIPE_PUBLIC_KEY } from '../config/env';
 
 /**
  * RevenueCat Service for Backend
  *
  * Handles server-side RevenueCat operations for web purchases (Stripe).
  *
- * Flow:
+ * PROPER STRIPE INTEGRATION FLOW:
  * 1. User pays via Stripe on web
- * 2. Clerk user is created
- * 3. RevenueCat subscriber is created (using Clerk ID as app_user_id)
- * 4. Promotional entitlement is granted based on plan duration
+ * 2. Stripe webhook fires checkout.session.completed
+ * 3. We POST the Stripe Checkout Session ID to RevenueCat /v1/receipts
+ * 4. RevenueCat tracks the revenue and grants entitlements automatically
  *
- * This mirrors what the app SDK does:
- * - App: Purchases.logIn(clerkUserId) → creates subscriber
- * - Backend: GET /subscribers/{clerkUserId} → creates subscriber if not exists
+ * This properly tracks revenue in RevenueCat dashboard!
+ *
+ * IMPORTANT: You must configure Stripe integration in RevenueCat:
+ * 1. Go to RevenueCat Dashboard → Project Settings → Integrations → Stripe
+ * 2. Connect your Stripe account
+ * 3. Map your Stripe products to RevenueCat entitlements
  */
-
-// Map Stripe plan types to RevenueCat durations
-// RevenueCat supports: daily, three_day, weekly, monthly, two_month, three_month, six_month, yearly, lifetime
-type RevenueCatDuration = 'daily' | 'three_day' | 'weekly' | 'monthly' | 'two_month' | 'three_month' | 'six_month' | 'yearly' | 'lifetime';
-
-const PLAN_TO_DURATION: Record<string, RevenueCatDuration> = {
-  // Stripe plan types
-  '1_month': 'monthly',
-  '3_month': 'three_month',
-  '1_year': 'yearly',
-  // RevenueCat product identifiers (from app)
-  'new_course_monthly': 'monthly',
-  'new_course_yearly': 'yearly',
-  'new_course_quaterly': 'three_month',
-};
 
 // Must match the entitlement ID in RevenueCat dashboard
 const ENTITLEMENT_ID = 'Premium Courses';
@@ -45,17 +33,81 @@ interface RevenueCatSubscriber {
     first_seen: string;
     original_app_user_id: string;
     subscriptions: Record<string, unknown>;
+    non_subscriptions: Record<string, unknown>;
     subscriber_attributes?: Record<string, { value: string; updated_at_ms: number }>;
   };
 }
 
-interface GrantEntitlementResult {
+interface RecordPurchaseResult {
   success: boolean;
   error?: string;
   subscriber?: RevenueCatSubscriber;
 }
 
 export const revenueCatService = {
+  /**
+   * Record a Stripe purchase in RevenueCat
+   *
+   * This is the CORRECT way to integrate Stripe with RevenueCat.
+   * It sends the Stripe Checkout Session ID to RevenueCat, which:
+   * - Tracks revenue properly
+   * - Grants entitlements based on your product mapping
+   * - Syncs with your mobile app
+   *
+   * @param appUserId - Clerk user ID (must match what app uses)
+   * @param stripeSessionId - Stripe Checkout Session ID (cs_xxx) or Subscription ID (sub_xxx)
+   */
+  async recordStripePurchase(
+    appUserId: string,
+    stripeSessionId: string
+  ): Promise<RecordPurchaseResult> {
+    if (!REVENUECAT_STRIPE_PUBLIC_KEY) {
+      console.error('[RevenueCat] Stripe public key not configured (REVENUECAT_STRIPE_PUBLIC_KEY)');
+      return { success: false, error: 'RevenueCat Stripe public key not configured' };
+    }
+
+    try {
+      console.log(`[RevenueCat] Recording Stripe purchase for user: ${appUserId}, session: ${stripeSessionId}`);
+
+      const response = await fetch('https://api.revenuecat.com/v1/receipts', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${REVENUECAT_STRIPE_PUBLIC_KEY}`,
+          'Content-Type': 'application/json',
+          'X-Platform': 'stripe',
+        },
+        body: JSON.stringify({
+          app_user_id: appUserId,
+          fetch_token: stripeSessionId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('[RevenueCat] Failed to record Stripe purchase:', data);
+        return {
+          success: false,
+          error: data.message || data.code || 'Failed to record purchase',
+        };
+      }
+
+      console.log(`[RevenueCat] ✅ Stripe purchase recorded for ${appUserId}`);
+      console.log('[RevenueCat] Entitlements:', Object.keys(data.subscriber?.entitlements || {}));
+
+      return {
+        success: true,
+        subscriber: data,
+      };
+    } catch (error) {
+      console.error('[RevenueCat] Record Stripe purchase error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  },
+
   /**
    * Get or Create a subscriber in RevenueCat
    *
@@ -157,85 +209,6 @@ export const revenueCatService = {
   },
 
   /**
-   * Grant a promotional entitlement to a user
-   *
-   * Complete flow:
-   * 1. Get or create the subscriber
-   * 2. Set email attribute (for Meta CAPI)
-   * 3. Grant the promotional entitlement
-   *
-   * @param appUserId - Clerk user ID
-   * @param planType - Plan type from Stripe (1_month, 3_month, 1_year)
-   * @param email - User's email
-   */
-  async grantEntitlement(
-    appUserId: string,
-    planType: string,
-    email?: string
-  ): Promise<GrantEntitlementResult> {
-    if (!REVENUECAT_SECRET_KEY) {
-      console.error('[RevenueCat] Secret key not configured');
-      return { success: false, error: 'RevenueCat secret key not configured' };
-    }
-
-    const duration = PLAN_TO_DURATION[planType];
-    if (!duration) {
-      console.error('[RevenueCat] Unknown plan type:', planType);
-      return { success: false, error: `Unknown plan type: ${planType}` };
-    }
-
-    try {
-      // Step 1: Get or create subscriber (like Purchases.logIn in SDK)
-      const subscriber = await this.getOrCreateSubscriber(appUserId);
-      if (!subscriber) {
-        return { success: false, error: 'Failed to create subscriber in RevenueCat' };
-      }
-
-      // Step 2: Set email attribute (like Purchases.setEmail in SDK)
-      if (email) {
-        await this.setSubscriberAttributes(appUserId, email);
-      }
-
-      // Step 3: Grant promotional entitlement
-      console.log(`[RevenueCat] Granting ${ENTITLEMENT_ID} (${duration}) to ${appUserId}`);
-
-      const response = await fetch(
-        `https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(appUserId)}/entitlements/${encodeURIComponent(ENTITLEMENT_ID)}/promotional`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${REVENUECAT_SECRET_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ duration }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        console.error('[RevenueCat] Failed to grant entitlement:', data);
-        return {
-          success: false,
-          error: data.message || data.error_message || 'Failed to grant entitlement',
-        };
-      }
-
-      console.log(`[RevenueCat] ✅ Entitlement granted: ${ENTITLEMENT_ID} (${duration}) to ${appUserId}`);
-      return {
-        success: true,
-        subscriber: data,
-      };
-    } catch (error) {
-      console.error('[RevenueCat] Grant entitlement error:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
-    }
-  },
-
-  /**
    * Check if a user has an active entitlement
    */
   async hasActiveEntitlement(appUserId: string): Promise<boolean> {
@@ -255,6 +228,7 @@ export const revenueCatService = {
 
   /**
    * Revoke promotional entitlements from a user
+   * Note: This only revokes promotional entitlements, not paid ones
    */
   async revokeEntitlement(appUserId: string): Promise<boolean> {
     if (!REVENUECAT_SECRET_KEY) {

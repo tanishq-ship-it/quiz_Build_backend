@@ -16,11 +16,20 @@ export interface CreateLeadInput {
 export const createLead = async (input: CreateLeadInput): Promise<PaymentLead> => {
   const { email1, quizId, quizResponseId } = input;
 
+  // Create Clerk user immediately with email1
+  let clerkUserId: string | null = null;
+  const clerkResult = await clerkService.getOrCreateUser(email1);
+  if (clerkResult.success && clerkResult.clerkUserId) {
+    clerkUserId = clerkResult.clerkUserId;
+    console.log(`[Clerk] User created/found with email1: ${email1}, userId: ${clerkUserId}`);
+  }
+
   return prisma.paymentLead.create({
     data: {
       email1,
       quizId,
       quizResponseId,
+      clerkUserId,
     },
   });
 };
@@ -45,21 +54,56 @@ export const updateLead = async (
     ? PRICES[planType].amount
     : null;
 
-  // Create Clerk user silently when email2 is confirmed
-  let clerkUserId: string | null = null;
-  if (email2) {
-    const clerkResult = await clerkService.createUser(email2);
-    if (clerkResult.success && clerkResult.clerkUserId) {
-      clerkUserId = clerkResult.clerkUserId;
+  // Get existing lead to check email1 and clerkUserId
+  const existingLead = await prisma.paymentLead.findUnique({
+    where: { id: leadId },
+  });
 
-      // Grant RevenueCat entitlement if user paid and has a plan
-      if (paid && planType) {
-        const rcResult = await revenueCatService.grantEntitlement(clerkUserId, planType, email2);
-        if (rcResult.success) {
-          console.log(`[RevenueCat] Entitlement granted for user ${clerkUserId}, plan: ${planType}`);
+  if (!existingLead) {
+    throw new Error('Lead not found');
+  }
+
+  let clerkUserId = existingLead.clerkUserId;
+
+  if (email2) {
+    // Check if we already have a Clerk user from email1
+    if (clerkUserId) {
+      // User exists - check if email2 is different from email1
+      if (email2.toLowerCase() !== existingLead.email1.toLowerCase()) {
+        // Email is different - update Clerk user's email
+        console.log(`[Clerk] Emails different. email1: ${existingLead.email1}, email2: ${email2}. Updating...`);
+        const updateResult = await clerkService.updateUserEmail(clerkUserId, email2);
+        if (updateResult.success) {
+          console.log(`[Clerk] Email updated for user ${clerkUserId}: ${email2}`);
         } else {
-          console.error(`[RevenueCat] Failed to grant entitlement: ${rcResult.error}`);
+          console.error(`[Clerk] Failed to update email: ${updateResult.error}`);
         }
+      } else {
+        console.log(`[Clerk] Emails match, no update needed: ${email2}`);
+      }
+    } else {
+      // No Clerk user yet - create one with email2
+      const clerkResult = await clerkService.getOrCreateUser(email2);
+      if (clerkResult.success && clerkResult.clerkUserId) {
+        clerkUserId = clerkResult.clerkUserId;
+        console.log(`[Clerk] User created with email2: ${email2}, userId: ${clerkUserId}`);
+      }
+    }
+
+    // Record Stripe purchase in RevenueCat if user paid and has a session ID
+    if (paid && stripeSessionId && clerkUserId) {
+      // First create/get subscriber in RevenueCat (required before setting attributes)
+      await revenueCatService.getOrCreateSubscriber(clerkUserId);
+
+      // Set email attribute for the user (use email2 as it's the confirmed email)
+      await revenueCatService.setSubscriberAttributes(clerkUserId, email2);
+
+      // Then record the Stripe purchase - this tracks revenue properly!
+      const rcResult = await revenueCatService.recordStripePurchase(clerkUserId, stripeSessionId);
+      if (rcResult.success) {
+        console.log(`[RevenueCat] Stripe purchase recorded for user ${clerkUserId}, session: ${stripeSessionId}`);
+      } else {
+        console.error(`[RevenueCat] Failed to record Stripe purchase: ${rcResult.error}`);
       }
     }
   }

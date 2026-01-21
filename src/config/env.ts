@@ -12,5 +12,7 @@ export const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY ?? '';
 
 // RevenueCat API
 export const REVENUECAT_SECRET_KEY = process.env.REVENUECAT_SECRET_KEY ?? '';
+// RevenueCat Stripe Public API Key (for POST /receipts - different from secret key)
+export const REVENUECAT_STRIPE_PUBLIC_KEY = process.env.REVENUECAT_STRIPE_PUBLIC_KEY ?? '';
 
 
