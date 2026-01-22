@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import * as paymentService from '../services/payment.service';
-import { isValidPlanType } from '../config/stripe';
+import { isValidPlanType } from '../config/revenuecat';
 
 // ========== CREATE LEAD (Email Page 1 - Before Payment) ==========
 
@@ -36,6 +36,7 @@ export const createLead = async (req: Request, res: Response): Promise<void> => 
       id: lead.id,
       email1: lead.email1,
       quizId: lead.quizId,
+      clerkUserId: lead.clerkUserId, // Return Clerk user ID to use as RevenueCat app_user_id
     });
   } catch (error) {
     console.error('Error creating lead:', error);
@@ -49,7 +50,7 @@ interface UpdateLeadBody {
   email2: string;
   planType?: string | null;
   paid: boolean;
-  stripeSessionId?: string | null;
+  revenuecatUserId?: string | null;
   deviceType?: string | null;
 }
 
@@ -79,7 +80,7 @@ export const updateLead = async (req: Request, res: Response): Promise<void> => 
       email2: body.email2,
       planType: body.planType,
       paid: body.paid,
-      stripeSessionId: body.stripeSessionId,
+      revenuecatUserId: body.revenuecatUserId,
       deviceType: body.deviceType,
     });
 
@@ -121,6 +122,9 @@ export const getLead = async (req: Request, res: Response): Promise<void> => {
       planType: lead.planType,
       paid: lead.paid,
       quizId: lead.quizId,
+      clerkUserId: lead.clerkUserId,
+      subscriptionStatus: lead.subscriptionStatus,
+      subscriptionExpiresAt: lead.subscriptionExpiresAt,
     });
   } catch (error) {
     console.error('Error getting lead:', error);
@@ -128,80 +132,22 @@ export const getLead = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-// ========== GET LEAD BY SESSION ID ==========
+// ========== CHECK SUBSCRIPTION STATUS ==========
 
-export const getLeadBySession = async (req: Request, res: Response): Promise<void> => {
-  const { sessionId } = req.params;
+export const checkSubscription = async (req: Request, res: Response): Promise<void> => {
+  const { leadId } = req.params;
 
-  if (!sessionId) {
-    res.status(400).json({ message: 'sessionId is required' });
-    return;
-  }
-
-  try {
-    const lead = await paymentService.getLeadBySessionId(sessionId);
-
-    if (!lead) {
-      res.status(404).json({ message: 'Lead not found for this session' });
-      return;
-    }
-
-    res.status(200).json({
-      id: lead.id,
-      email1: lead.email1,
-      email2: lead.email2,
-      planType: lead.planType,
-      paid: lead.paid,
-      quizId: lead.quizId,
-    });
-  } catch (error) {
-    console.error('Error getting lead by session:', error);
-    res.status(500).json({ message: 'Failed to get lead' });
-  }
-};
-
-// ========== CREATE CHECKOUT SESSION ==========
-
-interface CreateCheckoutBody {
-  leadId: string;
-  planType: string;
-}
-
-export const createCheckoutSession = async (req: Request, res: Response): Promise<void> => {
-  const body = req.body as CreateCheckoutBody;
-
-  if (!body.leadId) {
+  if (!leadId) {
     res.status(400).json({ message: 'leadId is required' });
     return;
   }
 
-  if (!body.planType) {
-    res.status(400).json({ message: 'planType is required' });
-    return;
-  }
-
-  if (!isValidPlanType(body.planType)) {
-    res.status(400).json({ message: `Invalid planType. Must be one of: 1_month, 3_month, 1_year` });
-    return;
-  }
-
   try {
-    const session = await paymentService.createCheckoutSession({
-      leadId: body.leadId,
-      planType: body.planType,
-    });
-
-    res.status(200).json({
-      sessionId: session.sessionId,
-      url: session.url,
-    });
+    const status = await paymentService.checkSubscriptionStatus(leadId);
+    res.status(200).json(status);
   } catch (error) {
-    console.error('Error creating checkout session:', error);
-    if (error instanceof Error) {
-      res.status(400).json({ message: error.message });
-      return;
-    }
-    res.status(500).json({ message: 'Failed to create checkout session' });
+    console.error('Error checking subscription:', error);
+    res.status(500).json({ message: 'Failed to check subscription' });
   }
 };
 
