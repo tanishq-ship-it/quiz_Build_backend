@@ -17,10 +17,6 @@ const app = express();
 
 app.use(cors());
 
-// IMPORTANT: Webhook route must come BEFORE JSON parsing middleware
-// because Stripe webhooks need raw body for signature verification
-app.use('/api/webhooks', express.raw({ type: 'application/json' }), webhookRouter);
-
 // Quiz payloads can be large (many screens / rich content). Increase body size limit.
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -31,6 +27,9 @@ app.use('/api/auth', authRouter);
 app.use('/api/public/quizzes', publicQuizRouter);
 app.use('/api/public/quiz-responses', publicQuizResponseRouter);
 app.use('/api/public/payments', paymentRouter);
+
+// Webhook routes (RevenueCat webhooks use JSON body)
+app.use('/api/webhooks', webhookRouter);
 
 // Protected routes
 app.use('/api/quizzes', authMiddleware, quizRouter);
@@ -46,5 +45,3 @@ app.listen(Number(PORT), () => {
   // eslint-disable-next-line no-console
   console.log(`Server listening on port ${PORT}`);
 });
-
-

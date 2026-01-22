@@ -56,8 +56,18 @@ model PaymentLead {
 
   // Payment status
   paid                  Boolean   @default(false)
+
+  // Legacy Stripe fields (kept for historical data)
   stripeSessionId       String?   @unique
   stripePaymentIntentId String?
+
+  // RevenueCat fields (new payment system)
+  revenuecatUserId      String?   // RevenueCat app_user_id
+  revenuecatTransactionId String? // RevenueCat transaction ID
+
+  // Subscription status tracking
+  subscriptionStatus    String?   // "active" | "cancelled" | "expired" | "billing_issue"
+  subscriptionExpiresAt DateTime? // When the subscription expires
 
   // Device tracking
   deviceType            String?   // "ios" | "android" | "desktop"
@@ -72,4 +82,6 @@ model PaymentLead {
   @@index([quizId])
   @@index([paid])
   @@index([deviceType])
+  @@index([revenuecatUserId])
+  @@index([subscriptionStatus])
 }

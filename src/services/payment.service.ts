@@ -1,7 +1,6 @@
 import type { PaymentLead } from '@prisma/client';
 import { prisma } from '../config/prisma';
-import { stripe, PRICES, FRONTEND_URL, isValidPlanType, type PlanType } from '../config/stripe';
-import type Stripe from 'stripe';
+import { PLANS, isValidPlanType, type PlanType, type RevenueCatWebhookEvent } from '../config/revenuecat';
 import * as clerkService from './clerk.service';
 
 // ========== CREATE LEAD (Email Page 1) ==========
@@ -38,7 +37,7 @@ export interface UpdateLeadInput {
   email2: string;
   planType?: string | null;
   paid: boolean;
-  stripeSessionId?: string | null;
+  revenuecatUserId?: string | null;
   deviceType?: string | null;
 }
 
@@ -46,10 +45,10 @@ export const updateLead = async (
   leadId: string,
   input: UpdateLeadInput
 ): Promise<PaymentLead> => {
-  const { email2, planType, paid, stripeSessionId, deviceType } = input;
+  const { email2, planType, paid, revenuecatUserId, deviceType } = input;
 
   const amountInCents = planType && isValidPlanType(planType)
-    ? PRICES[planType].amount
+    ? PLANS[planType].amount
     : null;
 
   // Get the existing lead to check if email changed
@@ -97,7 +96,7 @@ export const updateLead = async (
       planType,
       paid,
       amountInCents,
-      stripeSessionId,
+      revenuecatUserId,
       deviceType,
       paidAt: paid ? new Date() : null,
     },
@@ -112,117 +111,162 @@ export const getLeadById = async (leadId: string): Promise<PaymentLead | null> =
   });
 };
 
-export const getLeadBySessionId = async (sessionId: string): Promise<PaymentLead | null> => {
-  return prisma.paymentLead.findUnique({
-    where: { stripeSessionId: sessionId },
+export const getLeadByRevenueCatUserId = async (revenuecatUserId: string): Promise<PaymentLead | null> => {
+  return prisma.paymentLead.findFirst({
+    where: { revenuecatUserId },
   });
 };
 
-// ========== CREATE CHECKOUT SESSION ==========
+export const getLeadByClerkUserId = async (clerkUserId: string): Promise<PaymentLead | null> => {
+  return prisma.paymentLead.findUnique({
+    where: { clerkUserId },
+  });
+};
 
-export interface CreateCheckoutInput {
-  leadId: string;
-  planType: PlanType;
-}
+// ========== REVENUECAT WEBHOOK HANDLERS ==========
 
-export const createCheckoutSession = async (
-  input: CreateCheckoutInput
-): Promise<{ sessionId: string; url: string }> => {
-  const { leadId, planType } = input;
+export const handleRevenueCatWebhook = async (
+  event: RevenueCatWebhookEvent
+): Promise<void> => {
+  const { type, app_user_id, product_id, entitlement_ids, price_in_purchased_currency, currency } = event.event;
 
-  // Validate plan type
-  if (!isValidPlanType(planType)) {
-    throw new Error(`Invalid plan type: ${planType}`);
+  console.log(`RevenueCat webhook received: ${type} for user ${app_user_id}`);
+
+  // Find lead by RevenueCat user ID or Clerk user ID
+  // RevenueCat app_user_id should match the Clerk user ID we use
+  let lead = await getLeadByRevenueCatUserId(app_user_id);
+
+  if (!lead) {
+    // Try finding by Clerk user ID (since we use Clerk ID as RevenueCat app_user_id)
+    lead = await getLeadByClerkUserId(app_user_id);
   }
 
-  const priceConfig = PRICES[planType];
-  if (!priceConfig.id) {
-    throw new Error(`Price ID not configured for plan: ${planType}`);
+  if (!lead) {
+    console.log(`No lead found for RevenueCat user: ${app_user_id}`);
+    return;
   }
 
-  // Get lead to include email in checkout
+  // Determine plan type from product_id
+  let planType: PlanType | null = null;
+  for (const [key, value] of Object.entries(PLANS)) {
+    if (value.productId === product_id) {
+      planType = key as PlanType;
+      break;
+    }
+  }
+
+  switch (type) {
+    case 'INITIAL_PURCHASE':
+    case 'RENEWAL':
+    case 'NON_RENEWING_PURCHASE':
+      // User subscribed or renewed
+      await prisma.paymentLead.update({
+        where: { id: lead.id },
+        data: {
+          paid: true,
+          paidAt: new Date(),
+          planType,
+          amountInCents: price_in_purchased_currency
+            ? Math.round(price_in_purchased_currency * 100)
+            : null,
+          revenuecatUserId: app_user_id,
+          revenuecatTransactionId: event.event.transaction_id,
+          subscriptionStatus: 'active',
+          subscriptionExpiresAt: event.event.expiration_at_ms
+            ? new Date(event.event.expiration_at_ms)
+            : null,
+        },
+      });
+      console.log(`Payment confirmed for lead: ${lead.id}`);
+      break;
+
+    case 'CANCELLATION':
+      // User cancelled (but may still have access until expiration)
+      await prisma.paymentLead.update({
+        where: { id: lead.id },
+        data: {
+          subscriptionStatus: 'cancelled',
+        },
+      });
+      console.log(`Subscription cancelled for lead: ${lead.id}`);
+      break;
+
+    case 'UNCANCELLATION':
+      // User reactivated their subscription
+      await prisma.paymentLead.update({
+        where: { id: lead.id },
+        data: {
+          subscriptionStatus: 'active',
+        },
+      });
+      console.log(`Subscription reactivated for lead: ${lead.id}`);
+      break;
+
+    case 'EXPIRATION':
+      // Subscription expired
+      await prisma.paymentLead.update({
+        where: { id: lead.id },
+        data: {
+          subscriptionStatus: 'expired',
+          paid: false, // No longer has active access
+        },
+      });
+      console.log(`Subscription expired for lead: ${lead.id}`);
+      break;
+
+    case 'BILLING_ISSUE':
+      // Payment failed
+      await prisma.paymentLead.update({
+        where: { id: lead.id },
+        data: {
+          subscriptionStatus: 'billing_issue',
+        },
+      });
+      console.log(`Billing issue for lead: ${lead.id}`);
+      break;
+
+    case 'PRODUCT_CHANGE':
+      // User changed their plan
+      await prisma.paymentLead.update({
+        where: { id: lead.id },
+        data: {
+          planType,
+          subscriptionStatus: 'active',
+        },
+      });
+      console.log(`Plan changed for lead: ${lead.id}`);
+      break;
+
+    default:
+      console.log(`Unhandled RevenueCat event type: ${type}`);
+  }
+};
+
+// ========== CHECK SUBSCRIPTION STATUS ==========
+
+export const checkSubscriptionStatus = async (leadId: string): Promise<{
+  isPremium: boolean;
+  status: string | null;
+  expiresAt: Date | null;
+}> => {
   const lead = await prisma.paymentLead.findUnique({
     where: { id: leadId },
   });
 
   if (!lead) {
-    throw new Error('Lead not found');
+    return { isPremium: false, status: null, expiresAt: null };
   }
 
-  // Create Stripe Checkout Session
-  const session = await stripe.checkout.sessions.create({
-    mode: 'payment',
-    payment_method_types: ['card'],
-    line_items: [
-      {
-        price: priceConfig.id,
-        quantity: 1,
-      },
-    ],
-    customer_email: lead.email1,
-    success_url: `${FRONTEND_URL}/email-confirm/${lead.quizId || 'unknown'}?session_id={CHECKOUT_SESSION_ID}&paid=true&plan=${planType}&lead_id=${leadId}`,
-    cancel_url: `${FRONTEND_URL}/payment/cancel?quiz_id=${lead.quizId || ''}&lead_id=${leadId}`,
-    metadata: {
-      leadId,
-      planType,
-      quizId: lead.quizId || '',
-      quizResponseId: lead.quizResponseId || '',
-    },
-  });
-
-  if (!session.url) {
-    throw new Error('Failed to create checkout session URL');
-  }
+  // Check if subscription is still valid
+  const now = new Date();
+  const isActive = lead.subscriptionStatus === 'active' || lead.subscriptionStatus === 'cancelled';
+  const isNotExpired = !lead.subscriptionExpiresAt || lead.subscriptionExpiresAt > now;
 
   return {
-    sessionId: session.id,
-    url: session.url,
+    isPremium: isActive && isNotExpired && lead.paid,
+    status: lead.subscriptionStatus,
+    expiresAt: lead.subscriptionExpiresAt,
   };
-};
-
-// ========== WEBHOOK HANDLERS ==========
-
-export const handleCheckoutCompleted = async (
-  session: Stripe.Checkout.Session
-): Promise<void> => {
-  const leadId = session.metadata?.leadId;
-  const planType = session.metadata?.planType;
-
-  if (!leadId) {
-    console.error('No leadId in session metadata');
-    return;
-  }
-
-  // Update lead with Stripe info (email2 will be updated when user submits email form)
-  await prisma.paymentLead.update({
-    where: { id: leadId },
-    data: {
-      stripeSessionId: session.id,
-      stripePaymentIntentId: typeof session.payment_intent === 'string'
-        ? session.payment_intent
-        : session.payment_intent?.id,
-      planType,
-      amountInCents: session.amount_total,
-      paid: true,
-      paidAt: new Date(),
-    },
-  });
-
-  console.log(`Payment completed for lead: ${leadId}`);
-};
-
-export const handleCheckoutExpired = async (
-  session: Stripe.Checkout.Session
-): Promise<void> => {
-  const leadId = session.metadata?.leadId;
-
-  if (!leadId) {
-    console.log('No leadId in expired session metadata');
-    return;
-  }
-
-  console.log(`Checkout expired for lead: ${leadId}`);
-  // We don't update anything - user can retry or skip
 };
 
 // ========== ADMIN QUERIES ==========
@@ -246,3 +290,6 @@ export const getPaidLeads = async (): Promise<PaymentLead[]> => {
     orderBy: { createdAt: 'desc' },
   });
 };
+
+// Re-export for backwards compatibility
+export { isValidPlanType, type PlanType };
