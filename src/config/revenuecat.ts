@@ -25,7 +25,7 @@ export const PLANS = {
   },
   '1_year': {
     productId: 'premium_yearly', // RevenueCat product identifier
-    amount: 9999, // $99.99 in cents
+    amount: 6999, // $99.99 in cents
     label: '1 Year',
   },
 } as const;
