@@ -4,8 +4,8 @@ export const REVENUECAT_WEBHOOK_SECRET = process.env.REVENUECAT_WEBHOOK_SECRET ?
 export const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5173';
 
 // Your RevenueCat API keys (from your dashboard)
-export const REVENUECAT_PUBLIC_KEY = 'rcb_DdsTBxcBdGpcvZJsrhuYSTHpbDNm'; // Production
-export const REVENUECAT_SANDBOX_KEY = 'rcb_sb_simKVfpByivwLCDyPgBLHmLET'; // Sandbox/Testing
+export const REVENUECAT_PUBLIC_KEY = 'rcb_NsfaLLSgQYGCCbHbtoCErUZcNJIc'; // Production
+export const REVENUECAT_SANDBOX_KEY = 'rcb_sb_VxqhPCleFgrPtzHoJdwVWlTii'; // Sandbox/Testing
 
 if (!REVENUECAT_API_KEY) {
   console.warn('Warning: REVENUECAT_API_KEY is not set');
@@ -14,18 +14,13 @@ if (!REVENUECAT_API_KEY) {
 // Plan configurations (matching RevenueCat products)
 export const PLANS = {
   '1_month': {
-    productId: 'premium_monthly', // RevenueCat product identifier
+    productId: 'new_monthly', // RevenueCat product identifier
     amount: 1299, // $12.99 in cents
     label: '1 Month',
   },
-  '3_month': {
-    productId: 'premium_3month', // RevenueCat product identifier
-    amount: 2999, // $29.99 in cents
-    label: '3 Months',
-  },
   '1_year': {
-    productId: 'premium_yearly', // RevenueCat product identifier
-    amount: 6999, // $99.99 in cents
+    productId: 'new_yearly_web', // RevenueCat product identifier
+    amount: 6999, // $69.99 in cents
     label: '1 Year',
   },
 } as const;
