@@ -26,7 +26,7 @@ export const createLead = async (req: Request, res: Response): Promise<void> => 
   }
 
   try {
-    const lead = await paymentService.createLead({
+    const { lead, signInToken } = await paymentService.createLead({
       email1: body.email1,
       quizId: body.quizId,
       quizResponseId: body.quizResponseId,
@@ -37,6 +37,7 @@ export const createLead = async (req: Request, res: Response): Promise<void> => 
       email1: lead.email1,
       quizId: lead.quizId,
       clerkUserId: lead.clerkUserId, // Return Clerk user ID to use as RevenueCat app_user_id
+      signInToken, // Token for web-to-app auto-login
     });
   } catch (error) {
     console.error('Error creating lead:', error);

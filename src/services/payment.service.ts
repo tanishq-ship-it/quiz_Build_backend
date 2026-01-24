@@ -11,7 +11,12 @@ export interface CreateLeadInput {
   quizResponseId?: string;
 }
 
-export const createLead = async (input: CreateLeadInput): Promise<PaymentLead> => {
+export interface CreateLeadResult {
+  lead: PaymentLead;
+  signInToken: string | null;
+}
+
+export const createLead = async (input: CreateLeadInput): Promise<CreateLeadResult> => {
   const { email1, quizId, quizResponseId } = input;
 
   // Create Clerk user first (without username)
@@ -21,7 +26,10 @@ export const createLead = async (input: CreateLeadInput): Promise<PaymentLead> =
     throw new Error('Failed to create Clerk user');
   }
 
-  return prisma.paymentLead.create({
+  // Create sign-in token for web-to-app auto-login
+  const signInToken = await clerkService.createSignInToken(clerkUser.id);
+
+  const lead = await prisma.paymentLead.create({
     data: {
       email1,
       quizId,
@@ -29,6 +37,8 @@ export const createLead = async (input: CreateLeadInput): Promise<PaymentLead> =
       clerkUserId: clerkUser.id,
     },
   });
+
+  return { lead, signInToken };
 };
 
 // ========== UPDATE LEAD (Email Page 2) ==========

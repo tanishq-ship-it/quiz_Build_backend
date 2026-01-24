@@ -154,3 +154,36 @@ export const getClerkUser = async (userId: string): Promise<ClerkUser | null> =>
     return null;
   }
 };
+
+// ========== CREATE SIGN-IN TOKEN (for web-to-app auto-login) ==========
+
+export const createSignInToken = async (userId: string): Promise<string | null> => {
+  console.log('Creating sign-in token for user:', userId);
+
+  try {
+    const response = await fetch('https://api.clerk.com/v1/sign_in_tokens', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${getClerkSecretKey()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        expires_in_seconds: 60 * 60 * 24 * 7, // 1 week
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('Error creating sign-in token:', JSON.stringify(data, null, 2));
+      return null;
+    }
+
+    console.log('Sign-in token created successfully!');
+    return data.token;
+  } catch (error) {
+    console.error('Clerk sign-in token error:', error instanceof Error ? error.message : error);
+    return null;
+  }
+};
