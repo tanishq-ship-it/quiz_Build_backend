@@ -4,8 +4,8 @@ export const REVENUECAT_WEBHOOK_SECRET = process.env.REVENUECAT_WEBHOOK_SECRET ?
 export const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5173';
 
 // Your RevenueCat API keys (from your dashboard)
-export const REVENUECAT_PUBLIC_KEY = 'rcb_sb_VxqhPCleFgrPtzHoJdwVWlTii'; // Production
-// export const REVENUECAT_PUBLIC_KEY = 'rcb_NsfaLLSgQYGCCbHbtoCErUZcNJIc'; // Production
+// export const REVENUECAT_PUBLIC_KEY = 'rcb_sb_VxqhPCleFgrPtzHoJdwVWlTii'; // Production
+export const REVENUECAT_PUBLIC_KEY = 'rcb_NsfaLLSgQYGCCbHbtoCErUZcNJIc'; // Production
 export const REVENUECAT_SANDBOX_KEY = 'rcb_sb_VxqhPCleFgrPtzHoJdwVWlTii'; // Sandbox/Testing
 
 if (!REVENUECAT_API_KEY) {
