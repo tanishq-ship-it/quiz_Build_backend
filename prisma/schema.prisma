@@ -36,6 +36,17 @@ model User {
   updatedAt DateTime @updatedAt
 }
 
+model WebQuiz {
+  id        String   @id @default(cuid())
+  quizId    String   @unique
+  isActive  Boolean  @default(true)
+  setBy     String   // User ID who set this quiz as website quiz
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+}
+
 model PaymentLead {
   id                    String    @id @default(cuid())
 
