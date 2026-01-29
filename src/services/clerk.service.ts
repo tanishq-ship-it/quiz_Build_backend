@@ -25,7 +25,12 @@ export interface ClerkEmailAddress {
 
 // ========== CREATE CLERK USER (without username) ==========
 
-export const createClerkUser = async (email: string): Promise<ClerkUser | null> => {
+export interface CreateClerkUserResult {
+  user: ClerkUser | null;
+  error: string | null;
+}
+
+export const createClerkUser = async (email: string): Promise<CreateClerkUserResult> => {
   console.log('Creating Clerk user for:', email);
   console.log('CLERK_SECRET_KEY loaded:', getClerkSecretKey() ? 'Yes (length: ' + getClerkSecretKey().length + ')' : 'NO - MISSING!');
 
@@ -46,17 +51,19 @@ export const createClerkUser = async (email: string): Promise<ClerkUser | null> 
 
     if (!response.ok) {
       console.error('Error creating Clerk user:', JSON.stringify(user, null, 2));
-      return null;
+      // Extract the specific error message from Clerk
+      const errorMessage = user.errors?.[0]?.message || 'Failed to create account';
+      return { user: null, error: errorMessage };
     }
 
     console.log('Clerk user created successfully!');
     console.log('Clerk User ID:', user.id);
     console.log('Primary Email:', user.email_addresses?.[0]?.email_address);
 
-    return user as ClerkUser;
+    return { user: user as ClerkUser, error: null };
   } catch (error) {
     console.error('Clerk request error:', error instanceof Error ? error.message : error);
-    return null;
+    return { user: null, error: 'Failed to connect to authentication service' };
   }
 };
 

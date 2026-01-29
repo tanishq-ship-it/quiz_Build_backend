@@ -41,7 +41,8 @@ export const createLead = async (req: Request, res: Response): Promise<void> => 
     });
   } catch (error) {
     console.error('Error creating lead:', error);
-    res.status(500).json({ message: 'Failed to create lead' });
+    const errorMessage = error instanceof Error ? error.message : 'Failed to create lead';
+    res.status(400).json({ message: errorMessage });
   }
 };
 

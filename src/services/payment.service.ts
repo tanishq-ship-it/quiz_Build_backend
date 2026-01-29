@@ -20,10 +20,10 @@ export const createLead = async (input: CreateLeadInput): Promise<CreateLeadResu
   const { email1, quizId, quizResponseId } = input;
 
   // Create Clerk user first (without username)
-  const clerkUser = await clerkService.createClerkUser(email1);
+  const { user: clerkUser, error: clerkError } = await clerkService.createClerkUser(email1);
 
   if (!clerkUser) {
-    throw new Error('Failed to create Clerk user');
+    throw new Error(clerkError || 'Failed to create Clerk user');
   }
 
   // Create sign-in token for web-to-app auto-login
