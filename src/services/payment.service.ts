@@ -19,7 +19,40 @@ export interface CreateLeadResult {
 export const createLead = async (input: CreateLeadInput): Promise<CreateLeadResult> => {
   const { email1, quizId, quizResponseId } = input;
 
-  // Create Clerk user first (without username)
+  // Check if a PaymentLead already exists with this email
+  const existingLead = await prisma.paymentLead.findFirst({
+    where: { email1 },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (existingLead) {
+    const hasCompletedFlow = existingLead.email2 !== null || existingLead.paid === true;
+
+    if (hasCompletedFlow) {
+      // User already completed the flow - don't allow duplicate
+      throw new Error('An account with this email already exists');
+    }
+
+    // User abandoned payment - check if within 1 hour window
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const isWithinOneHour = existingLead.createdAt > oneHourAgo;
+
+    if (isWithinOneHour && existingLead.clerkUserId) {
+      // Within 1 hour - reuse existing lead, just generate new signInToken
+      console.log('Reusing existing lead within 1-hour window:', existingLead.id);
+      const signInToken = await clerkService.createSignInToken(existingLead.clerkUserId);
+      return { lead: existingLead, signInToken };
+    }
+
+    // Expired (>1 hour) - delete old Clerk user and PaymentLead, create fresh
+    console.log('Lead expired, cleaning up:', existingLead.id);
+    if (existingLead.clerkUserId) {
+      await clerkService.deleteClerkUser(existingLead.clerkUserId);
+    }
+    await prisma.paymentLead.delete({ where: { id: existingLead.id } });
+  }
+
+  // Create new Clerk user
   const { user: clerkUser, error: clerkError } = await clerkService.createClerkUser(email1);
 
   if (!clerkUser) {

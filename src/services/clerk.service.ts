@@ -162,6 +162,34 @@ export const getClerkUser = async (userId: string): Promise<ClerkUser | null> =>
   }
 };
 
+// ========== DELETE CLERK USER ==========
+
+export const deleteClerkUser = async (userId: string): Promise<boolean> => {
+  console.log('Deleting Clerk user:', userId);
+
+  try {
+    const response = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${getClerkSecretKey()}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Error deleting Clerk user:', JSON.stringify(errorData, null, 2));
+      return false;
+    }
+
+    console.log('Clerk user deleted successfully!');
+    return true;
+  } catch (error) {
+    console.error('Clerk request error:', error instanceof Error ? error.message : error);
+    return false;
+  }
+};
+
 // ========== CREATE SIGN-IN TOKEN (for web-to-app auto-login) ==========
 
 export const createSignInToken = async (userId: string): Promise<string | null> => {
