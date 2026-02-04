@@ -167,7 +167,7 @@ export const getQuizAnalytics = async (
   const heatmapData = new Map<string, number>(); // "dayOfWeek-hour" -> count
 
   for (const response of responses) {
-    const screenResponses = (response.content || []) as ScreenResponseItem[];
+    const screenResponses = (response.content || []) as unknown as ScreenResponseItem[];
     const device = response.deviceType as DeviceType | null;
 
     // Only count if device is known
