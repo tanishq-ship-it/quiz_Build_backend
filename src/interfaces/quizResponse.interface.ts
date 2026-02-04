@@ -6,6 +6,7 @@ export interface ScreenResponseItem { screenId: string; index: number; response:
 
 export interface CreateQuizResponseRequestBody {
   quizId: string;
+  deviceType?: 'iphone' | 'android' | 'desktop';
 }
 
 export interface AppendScreenResponseRequestBody {
@@ -13,7 +14,7 @@ export interface AppendScreenResponseRequestBody {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export interface QuizResponseDto { id: string; quizId: string; content: any; createdAt: string }
+export interface QuizResponseDto { id: string; quizId: string; content: any; deviceType: string | null; createdAt: string }
 
 
 

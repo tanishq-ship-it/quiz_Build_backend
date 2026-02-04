@@ -13,6 +13,7 @@ import adminPaymentRouter from './routes/adminPayment.route';
 import webhookRouter from './routes/webhook.route';
 import webQuizRouter from './routes/webQuiz.route';
 import publicWebQuizRouter from './routes/publicWebQuiz.route';
+import analyticsRouter from './routes/analytics.route';
 import { authMiddleware } from './middleware/auth.middleware';
 
 const app = express();
@@ -40,6 +41,7 @@ app.use('/api/quiz-responses', authMiddleware, quizResponseRouter);
 app.use('/api/users', userRouter);
 app.use('/api/payments', authMiddleware, adminPaymentRouter);
 app.use('/api/web-quiz', authMiddleware, webQuizRouter);
+app.use('/api/analytics', authMiddleware, analyticsRouter);
 
 app.get('/', (_req, res) => {
   res.send('Quiz Builder backend is running');

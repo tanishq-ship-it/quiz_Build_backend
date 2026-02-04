@@ -7,19 +7,24 @@ const toQuizResponseDto = (entity: QuizResponse): QuizResponseDto => ({
   id: entity.id,
   quizId: entity.quizId,
   content: entity.content ?? [],
+  deviceType: entity.deviceType,
   createdAt: entity.createdAt.toISOString(),
 });
 
 export const createQuizResponse = async (req: Request, res: Response): Promise<void> => {
-  const { quizId } = req.body as CreateQuizResponseRequestBody;
+  const { quizId, deviceType } = req.body as CreateQuizResponseRequestBody;
 
   if (!quizId || typeof quizId !== 'string') {
     res.status(400).json({ message: 'quizId is required' });
     return;
   }
 
+  // Validate deviceType if provided
+  const validDeviceTypes = ['iphone', 'android', 'desktop'];
+  const normalizedDeviceType = deviceType && validDeviceTypes.includes(deviceType) ? deviceType : undefined;
+
   try {
-    const response = await createQuizResponseService(quizId.trim());
+    const response = await createQuizResponseService(quizId.trim(), normalizedDeviceType);
     res.status(201).json(toQuizResponseDto(response));
   } catch (error) {
     // eslint-disable-next-line no-console

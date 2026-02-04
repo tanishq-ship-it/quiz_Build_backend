@@ -18,12 +18,15 @@ model Quiz {
 }
 
 model QuizResponse {
-  id        String   @id @default(cuid())
-  quizId    String
-  content   Json?
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  quizId     String
+  content    Json?
+  deviceType String?  // "iphone" | "android" | "desktop"
+  createdAt  DateTime @default(now())
 
   @@index([quizId])
+  @@index([quizId, deviceType])
+  @@index([deviceType])
 }
 
 model User {
