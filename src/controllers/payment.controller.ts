@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import geoip from 'geoip-lite';
 import * as paymentService from '../services/payment.service';
 import { isValidPlanType } from '../config/revenuecat';
 
@@ -8,6 +9,8 @@ interface CreateLeadBody {
   email1: string;
   quizId?: string;
   quizResponseId?: string;
+  country?: string;
+  city?: string;
 }
 
 export const createLead = async (req: Request, res: Response): Promise<void> => {
@@ -25,11 +28,21 @@ export const createLead = async (req: Request, res: Response): Promise<void> => 
     return;
   }
 
+  // Resolve geo location from IP
+  const forwarded = req.headers['x-forwarded-for'];
+  let ip = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : req.ip;
+  // Strip IPv6-mapped IPv4 prefix (e.g. ::ffff:1.2.3.4 -> 1.2.3.4)
+  if (ip) ip = ip.replace(/^::ffff:/, '');
+  const geo = ip ? geoip.lookup(ip) : null;
+  console.log('Payment lead IP:', ip, '-> Geo:', geo?.country, geo?.city);
+
   try {
     const { lead, signInToken } = await paymentService.createLead({
       email1: body.email1,
       quizId: body.quizId,
       quizResponseId: body.quizResponseId,
+      country: body.country || geo?.country || undefined,
+      city: body.city || geo?.city || undefined,
     });
 
     res.status(201).json({

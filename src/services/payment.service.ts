@@ -9,6 +9,8 @@ export interface CreateLeadInput {
   email1: string;
   quizId?: string;
   quizResponseId?: string;
+  country?: string;
+  city?: string;
 }
 
 export interface CreateLeadResult {
@@ -17,7 +19,7 @@ export interface CreateLeadResult {
 }
 
 export const createLead = async (input: CreateLeadInput): Promise<CreateLeadResult> => {
-  const { email1, quizId, quizResponseId } = input;
+  const { email1, quizId, quizResponseId, country, city } = input;
 
   // Check if a PaymentLead already exists with this email
   const existingLead = await prisma.paymentLead.findFirst({
@@ -68,6 +70,8 @@ export const createLead = async (input: CreateLeadInput): Promise<CreateLeadResu
       quizId,
       quizResponseId,
       clerkUserId: clerkUser.id,
+      country,
+      city,
     },
   });
 

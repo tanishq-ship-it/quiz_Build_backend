@@ -22,6 +22,8 @@ model QuizResponse {
   quizId     String
   content    Json?
   deviceType String?  // "iphone" | "android" | "desktop"
+  country    String?
+  city       String?
   createdAt  DateTime @default(now())
 
   @@index([quizId])
@@ -85,6 +87,10 @@ model PaymentLead {
 
   // Device tracking
   deviceType            String?   // "ios" | "android" | "desktop"
+
+  // Geo location (resolved from IP on lead creation)
+  country               String?
+  city                  String?
 
   // Timestamps
   createdAt             DateTime  @default(now())

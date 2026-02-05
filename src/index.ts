@@ -18,6 +18,7 @@ import { authMiddleware } from './middleware/auth.middleware';
 
 const app = express();
 
+app.set('trust proxy', true);
 app.use(cors());
 
 // Quiz payloads can be large (many screens / rich content). Increase body size limit.

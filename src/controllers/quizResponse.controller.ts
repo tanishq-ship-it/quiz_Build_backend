@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import type { QuizResponse } from '@prisma/client';
+import geoip from 'geoip-lite';
 import { createQuizResponse as createQuizResponseService, appendScreenResponse as appendScreenResponseService } from '../services/quizResponse.service';
 import type { AppendScreenResponseRequestBody, CreateQuizResponseRequestBody, QuizResponseDto } from '../interfaces/quizResponse.interface';
 
@@ -12,7 +13,7 @@ const toQuizResponseDto = (entity: QuizResponse): QuizResponseDto => ({
 });
 
 export const createQuizResponse = async (req: Request, res: Response): Promise<void> => {
-  const { quizId, deviceType } = req.body as CreateQuizResponseRequestBody;
+  const { quizId, deviceType, country: bodyCountry, city: bodyCity } = req.body as CreateQuizResponseRequestBody & { country?: string; city?: string };
 
   if (!quizId || typeof quizId !== 'string') {
     res.status(400).json({ message: 'quizId is required' });
@@ -23,8 +24,21 @@ export const createQuizResponse = async (req: Request, res: Response): Promise<v
   const validDeviceTypes = ['iphone', 'android', 'desktop'];
   const normalizedDeviceType = deviceType && validDeviceTypes.includes(deviceType) ? deviceType : undefined;
 
+  // Resolve geo location from IP
+  const forwarded = req.headers['x-forwarded-for'];
+  let ip = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : req.ip;
+  // Strip IPv6-mapped IPv4 prefix (e.g. ::ffff:1.2.3.4 -> 1.2.3.4)
+  if (ip) ip = ip.replace(/^::ffff:/, '');
+  const geo = ip ? geoip.lookup(ip) : null;
+  console.log('Quiz response IP:', ip, '-> Geo:', geo?.country, geo?.city);
+
   try {
-    const response = await createQuizResponseService(quizId.trim(), normalizedDeviceType);
+    const response = await createQuizResponseService(
+      quizId.trim(),
+      normalizedDeviceType,
+      bodyCountry || geo?.country || undefined,
+      bodyCity || geo?.city || undefined,
+    );
     res.status(201).json(toQuizResponseDto(response));
   } catch (error) {
     // eslint-disable-next-line no-console

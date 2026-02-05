@@ -4,13 +4,17 @@ import type { ScreenResponseItem } from '../interfaces/quizResponse.interface';
 
 export const createQuizResponse = async (
   quizId: string,
-  deviceType?: 'iphone' | 'android' | 'desktop'
+  deviceType?: 'iphone' | 'android' | 'desktop',
+  country?: string,
+  city?: string,
 ): Promise<QuizResponse> => {
   return prisma.quizResponse.create({
     data: {
       quizId,
       content: [],
       deviceType: deviceType ?? null,
+      country: country ?? null,
+      city: city ?? null,
     },
   });
 };

@@ -13,6 +13,7 @@ import type {
   ResponsesOverTimeDto,
   PeakHoursHeatmapDto,
   DayOfWeekBreakdownDto,
+  CountryDistributionDto,
 } from '../interfaces/analytics.interface';
 
 interface ScreenResponseItem {
@@ -93,6 +94,8 @@ export const getQuizAnalytics = async (
       id: true,
       content: true,
       deviceType: true,
+      country: true,
+      city: true,
       createdAt: true,
     },
   });
@@ -126,6 +129,7 @@ export const getQuizAnalytics = async (
       responsesOverTime: [],
       peakHoursHeatmap: [],
       dayOfWeekBreakdown: [],
+      countryDistribution: [],
     };
   }
 
@@ -165,6 +169,7 @@ export const getQuizAnalytics = async (
   const responsesByHour = new Map<number, number>();
   const responsesByDayOfWeek = new Map<number, number>();
   const heatmapData = new Map<string, number>(); // "dayOfWeek-hour" -> count
+  const countryCounts = new Map<string, { count: number; cities: Map<string, number> }>();
 
   for (const response of responses) {
     const screenResponses = (response.content || []) as unknown as ScreenResponseItem[];
@@ -186,6 +191,23 @@ export const getQuizAnalytics = async (
     responsesByHour.set(hour, (responsesByHour.get(hour) || 0) + 1);
     responsesByDayOfWeek.set(dayOfWeek, (responsesByDayOfWeek.get(dayOfWeek) || 0) + 1);
     heatmapData.set(heatmapKey, (heatmapData.get(heatmapKey) || 0) + 1);
+
+    // Country/city tracking
+    if (response.country) {
+      const existing = countryCounts.get(response.country);
+      if (existing) {
+        existing.count++;
+        if (response.city) {
+          existing.cities.set(response.city, (existing.cities.get(response.city) || 0) + 1);
+        }
+      } else {
+        const cities = new Map<string, number>();
+        if (response.city) {
+          cities.set(response.city, 1);
+        }
+        countryCounts.set(response.country, { count: 1, cities });
+      }
+    }
 
     let sessionTotalTimeMs = 0;
     const maxQuestionReached = screenResponses.length;
@@ -328,6 +350,18 @@ export const getQuizAnalytics = async (
     count: responsesByDayOfWeek.get(i) || 0,
   }));
 
+  // Country distribution
+  const countryDistribution: CountryDistributionDto[] = Array.from(countryCounts.entries())
+    .map(([country, data]) => ({
+      country,
+      count: data.count,
+      percentage: Math.round((data.count / totalAttendees) * 100),
+      cities: Array.from(data.cities.entries())
+        .map(([city, count]) => ({ city, count }))
+        .sort((a, b) => b.count - a.count),
+    }))
+    .sort((a, b) => b.count - a.count);
+
   // Build KPI summary
   const kpiSummary: KPISummaryDto = {
     totalAttendees,
@@ -358,5 +392,6 @@ export const getQuizAnalytics = async (
     responsesOverTime,
     peakHoursHeatmap,
     dayOfWeekBreakdown,
+    countryDistribution,
   };
 };

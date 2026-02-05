@@ -110,6 +110,13 @@ export interface DateRangeDto {
   end: string;
 }
 
+export interface CountryDistributionDto {
+  country: string;
+  count: number;
+  percentage: number;
+  cities: { city: string; count: number }[];
+}
+
 export interface QuizAnalyticsDto {
   quizId: string;
   quizTitle: string;
@@ -123,4 +130,5 @@ export interface QuizAnalyticsDto {
   responsesOverTime: ResponsesOverTimeDto[];
   peakHoursHeatmap: PeakHoursHeatmapDto[];
   dayOfWeekBreakdown: DayOfWeekBreakdownDto[];
+  countryDistribution: CountryDistributionDto[];
 }
