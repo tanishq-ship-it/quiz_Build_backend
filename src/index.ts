@@ -14,6 +14,8 @@ import webhookRouter from './routes/webhook.route';
 import webQuizRouter from './routes/webQuiz.route';
 import publicWebQuizRouter from './routes/publicWebQuiz.route';
 import analyticsRouter from './routes/analytics.route';
+import blogRouter from './routes/blog.route';
+import publicBlogRouter from './routes/publicBlog.route';
 import { authMiddleware } from './middleware/auth.middleware';
 
 const app = express();
@@ -32,6 +34,7 @@ app.use('/api/public/quizzes', publicQuizRouter);
 app.use('/api/public/quiz-responses', publicQuizResponseRouter);
 app.use('/api/public/payments', paymentRouter);
 app.use('/api/public/web-quiz', publicWebQuizRouter);
+app.use('/api/public/blogs', publicBlogRouter);
 
 // Webhook routes (RevenueCat webhooks use JSON body)
 app.use('/api/webhooks', webhookRouter);
@@ -43,6 +46,7 @@ app.use('/api/users', userRouter);
 app.use('/api/payments', authMiddleware, adminPaymentRouter);
 app.use('/api/web-quiz', authMiddleware, webQuizRouter);
 app.use('/api/analytics', authMiddleware, analyticsRouter);
+app.use('/api/blogs', authMiddleware, blogRouter);
 
 app.get('/', (_req, res) => {
   res.send('Quiz Builder backend is running');
