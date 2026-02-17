@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import type { Blog } from '@prisma/client';
+import geoip from 'geoip-lite';
 import {
   createBlog as createBlogService,
   getBlogById as getBlogByIdService,
@@ -9,9 +10,12 @@ import {
   updateBlog as updateBlogService,
   updateBlogPublished,
   deleteBlog as deleteBlogService,
+  trackButtonClick as trackButtonClickService,
+  trackCountryView as trackCountryViewService,
 } from '../services/blog.service';
 import type {
   BlogDto,
+  PublicBlogDto,
   BlogListItemDto,
   CreateBlogRequestBody,
   UpdateBlogRequestBody,
@@ -19,6 +23,21 @@ import type {
 } from '../interfaces/blog.interface';
 
 const toBlogDto = (blog: Blog): BlogDto => ({
+  id: blog.id,
+  title: blog.title,
+  slug: blog.slug,
+  content: blog.content,
+  published: blog.published,
+  deletion: blog.deletion,
+  readTime: blog.readTime,
+  excerpt: blog.excerpt,
+  buttonClicks: blog.buttonClicks,
+  countryViews: blog.countryViews,
+  createdAt: blog.createdAt.toISOString(),
+  updatedAt: blog.updatedAt.toISOString(),
+});
+
+const toPublicBlogDto = (blog: Blog): PublicBlogDto => ({
   id: blog.id,
   title: blog.title,
   slug: blog.slug,
@@ -182,5 +201,66 @@ export const getPublishedBlogBySlug = async (req: Request, res: Response): Promi
     return;
   }
 
-  res.status(200).json(toBlogDto(blog));
+  res.status(200).json(toPublicBlogDto(blog));
+};
+
+// ── Public tracking ──
+
+export const trackBlogButtonClick = async (req: Request, res: Response): Promise<void> => {
+  const { slug } = req.params;
+  const { url } = req.body as { url?: string };
+
+  if (!slug) {
+    res.status(400).json({ message: 'slug is required' });
+    return;
+  }
+
+  if (!url || typeof url !== 'string') {
+    res.status(400).json({ message: 'url is required' });
+    return;
+  }
+
+  try {
+    await trackButtonClickService(slug, url);
+    res.status(204).send();
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error(error);
+    if (error instanceof Error && error.message === 'Blog not found') {
+      res.status(404).json({ message: 'Blog not found' });
+      return;
+    }
+    res.status(500).json({ message: 'Failed to track button click' });
+  }
+};
+
+export const trackBlogCountryView = async (req: Request, res: Response): Promise<void> => {
+  const { slug } = req.params;
+  const { country: bodyCountry } = req.body as { country?: string };
+
+  if (!slug) {
+    res.status(400).json({ message: 'slug is required' });
+    return;
+  }
+
+  // Resolve country: prefer body (from frontend ipapi.co), fallback to server-side geoip-lite
+  const forwarded = req.headers['x-forwarded-for'];
+  let ip = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : req.ip;
+  if (ip) ip = ip.replace(/^::ffff:/, '');
+  const geo = ip ? geoip.lookup(ip) : null;
+
+  const country = bodyCountry || geo?.country || 'Unknown';
+
+  try {
+    await trackCountryViewService(slug, country);
+    res.status(204).send();
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error(error);
+    if (error instanceof Error && error.message === 'Blog not found') {
+      res.status(404).json({ message: 'Blog not found' });
+      return;
+    }
+    res.status(500).json({ message: 'Failed to track country view' });
+  }
 };

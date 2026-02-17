@@ -1,4 +1,4 @@
-import type { Blog } from '@prisma/client';
+import type { Blog, Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 
 // ── Slug generation ──
@@ -110,5 +110,46 @@ export const deleteBlog = async (id: string): Promise<Blog> => {
   return prisma.blog.update({
     where: { id },
     data: { deletion: true, published: false },
+  });
+};
+
+// ── Tracking ──
+
+export interface ButtonClickEntry { url: string; num_of_clicks: number }
+export interface CountryViewEntry { country: string; num: number }
+
+export const trackButtonClick = async (slug: string, url: string): Promise<void> => {
+  const blog = await prisma.blog.findUnique({ where: { slug } });
+  if (!blog || !blog.published || blog.deletion) throw new Error('Blog not found');
+
+  const clicks: ButtonClickEntry[] = (blog.buttonClicks as ButtonClickEntry[] | null) ?? [];
+  const existing = clicks.find((entry) => entry.url === url);
+  if (existing) {
+    existing.num_of_clicks += 1;
+  } else {
+    clicks.push({ url, num_of_clicks: 1 });
+  }
+
+  await prisma.blog.update({
+    where: { slug },
+    data: { buttonClicks: clicks as unknown as Prisma.InputJsonValue },
+  });
+};
+
+export const trackCountryView = async (slug: string, country: string): Promise<void> => {
+  const blog = await prisma.blog.findUnique({ where: { slug } });
+  if (!blog || !blog.published || blog.deletion) throw new Error('Blog not found');
+
+  const views: CountryViewEntry[] = (blog.countryViews as CountryViewEntry[] | null) ?? [];
+  const existing = views.find((entry) => entry.country === country);
+  if (existing) {
+    existing.num += 1;
+  } else {
+    views.push({ country, num: 1 });
+  }
+
+  await prisma.blog.update({
+    where: { slug },
+    data: { countryViews: views as unknown as Prisma.InputJsonValue },
   });
 };

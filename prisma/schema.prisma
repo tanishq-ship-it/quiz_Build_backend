@@ -107,16 +107,18 @@ model PaymentLead {
 }
 
 model Blog {
-  id        String   @id @default(cuid())
-  title     String
-  slug      String   @unique
-  content   Json?
-  published Boolean  @default(false)
-  deletion  Boolean  @default(false)
-  readTime  String?
-  excerpt   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  title        String
+  slug         String   @unique
+  content      Json?
+  published    Boolean  @default(false)
+  deletion     Boolean  @default(false)
+  readTime     String?
+  excerpt      String?
+  buttonClicks Json?
+  countryViews Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([published, deletion])
   @@index([slug])

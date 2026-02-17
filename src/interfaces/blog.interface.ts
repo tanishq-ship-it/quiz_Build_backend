@@ -18,6 +18,24 @@ export interface BlogDto {
   deletion: boolean;
   readTime: string | null;
   excerpt: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  buttonClicks: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  countryViews: any;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublicBlogDto {
+  id: string;
+  title: string;
+  slug: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  content: any;
+  published: boolean;
+  deletion: boolean;
+  readTime: string | null;
+  excerpt: string | null;
   createdAt: string;
   updatedAt: string;
 }
