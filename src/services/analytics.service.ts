@@ -45,6 +45,7 @@ export const getQuizzesWithResponseCounts = async (): Promise<QuizListItemDto[]>
     _count: { id: true },
     where: {
       quizId: { in: quizzes.map((q) => q.id) },
+      isLive: true,
     },
   });
 
@@ -72,7 +73,7 @@ export const getQuizAnalytics = async (
 
   // Build where clause
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const whereClause: any = { quizId };
+  const whereClause: any = { quizId, isLive: true };
 
   if (filters.deviceTypes?.length) {
     whereClause.deviceType = { in: filters.deviceTypes };

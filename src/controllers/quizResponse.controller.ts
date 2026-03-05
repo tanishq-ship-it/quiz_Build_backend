@@ -12,6 +12,7 @@ const toQuizResponseDto = (entity: QuizResponse): QuizResponseDto => ({
   createdAt: entity.createdAt.toISOString(),
 });
 
+// Used by public routes — isLive defaults to true (real user data)
 export const createQuizResponse = async (req: Request, res: Response): Promise<void> => {
   const { quizId, deviceType, country: bodyCountry, city: bodyCity } = req.body as CreateQuizResponseRequestBody & { country?: string; city?: string };
 
@@ -20,14 +21,11 @@ export const createQuizResponse = async (req: Request, res: Response): Promise<v
     return;
   }
 
-  // Validate deviceType if provided
   const validDeviceTypes = ['iphone', 'android', 'desktop'];
   const normalizedDeviceType = deviceType && validDeviceTypes.includes(deviceType) ? deviceType : undefined;
 
-  // Resolve geo location from IP
   const forwarded = req.headers['x-forwarded-for'];
   let ip = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : req.ip;
-  // Strip IPv6-mapped IPv4 prefix (e.g. ::ffff:1.2.3.4 -> 1.2.3.4)
   if (ip) ip = ip.replace(/^::ffff:/, '');
   const geo = ip ? geoip.lookup(ip) : null;
   console.log('Quiz response IP:', ip, '-> Geo:', geo?.country, geo?.city);
@@ -38,12 +36,41 @@ export const createQuizResponse = async (req: Request, res: Response): Promise<v
       normalizedDeviceType,
       bodyCountry || geo?.country || undefined,
       bodyCity || geo?.city || undefined,
+      true,
     );
     res.status(201).json(toQuizResponseDto(response));
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error(error);
     res.status(500).json({ message: 'Failed to create quiz response' });
+  }
+};
+
+// Used by protected/admin routes — isLive is false (preview/test data)
+export const createPreviewQuizResponse = async (req: Request, res: Response): Promise<void> => {
+  const { quizId, deviceType } = req.body as CreateQuizResponseRequestBody;
+
+  if (!quizId || typeof quizId !== 'string') {
+    res.status(400).json({ message: 'quizId is required' });
+    return;
+  }
+
+  const validDeviceTypes = ['iphone', 'android', 'desktop'];
+  const normalizedDeviceType = deviceType && validDeviceTypes.includes(deviceType) ? deviceType : undefined;
+
+  try {
+    const response = await createQuizResponseService(
+      quizId.trim(),
+      normalizedDeviceType,
+      undefined,
+      undefined,
+      false,
+    );
+    res.status(201).json(toQuizResponseDto(response));
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error(error);
+    res.status(500).json({ message: 'Failed to create preview response' });
   }
 };
 

@@ -24,11 +24,13 @@ model QuizResponse {
   deviceType String?  // "iphone" | "android" | "desktop"
   country    String?
   city       String?
+  isLive     Boolean  @default(true)
   createdAt  DateTime @default(now())
 
   @@index([quizId])
   @@index([quizId, deviceType])
   @@index([deviceType])
+  @@index([isLive])
 }
 
 model User {

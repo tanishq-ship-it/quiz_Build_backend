@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { appendScreenResponse, createQuizResponse } from '../controllers/quizResponse.controller';
+import { appendScreenResponse, createPreviewQuizResponse } from '../controllers/quizResponse.controller';
 
 const router = Router();
 
-router.post('/', createQuizResponse);
+router.post('/', createPreviewQuizResponse);
 router.post('/:id/screens', appendScreenResponse);
 
 export default router;

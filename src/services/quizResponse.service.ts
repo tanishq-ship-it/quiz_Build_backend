@@ -7,6 +7,7 @@ export const createQuizResponse = async (
   deviceType?: 'iphone' | 'android' | 'desktop',
   country?: string,
   city?: string,
+  isLive: boolean = true,
 ): Promise<QuizResponse> => {
   return prisma.quizResponse.create({
     data: {
@@ -15,6 +16,7 @@ export const createQuizResponse = async (
       deviceType: deviceType ?? null,
       country: country ?? null,
       city: city ?? null,
+      isLive,
     },
   });
 };
