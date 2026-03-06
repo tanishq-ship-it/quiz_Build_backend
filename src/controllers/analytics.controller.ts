@@ -15,7 +15,7 @@ export const listQuizzesForAnalytics = async (_req: Request, res: Response): Pro
 
 export const getQuizAnalyticsById = async (req: Request, res: Response): Promise<void> => {
   const { quizId } = req.params;
-  const { devices, startDate, endDate, range } = req.query;
+  const { devices, startDate, endDate, range, country } = req.query;
 
   if (!quizId) {
     res.status(400).json({ message: 'quizId is required' });
@@ -67,6 +67,11 @@ export const getQuizAnalyticsById = async (req: Request, res: Response): Promise
         filters.endDate = parsed;
       }
     }
+  }
+
+  // Parse country filter
+  if (country && typeof country === 'string') {
+    filters.country = country;
   }
 
   try {

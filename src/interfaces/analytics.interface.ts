@@ -10,6 +10,7 @@ export interface AnalyticsQueryParams {
   deviceTypes?: DeviceType[];
   startDate?: Date;
   endDate?: Date;
+  country?: string;
 }
 
 // =====================

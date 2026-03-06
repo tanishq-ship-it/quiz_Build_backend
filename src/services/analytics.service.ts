@@ -79,6 +79,10 @@ export const getQuizAnalytics = async (
     whereClause.deviceType = { in: filters.deviceTypes };
   }
 
+  if (filters.country) {
+    whereClause.country = filters.country;
+  }
+
   if (filters.startDate || filters.endDate) {
     whereClause.createdAt = {};
     if (filters.startDate) {
